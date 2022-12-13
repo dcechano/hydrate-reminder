@@ -1,13 +1,23 @@
 package com.hydratereminder.dictionary;
 
+import com.google.gson.Gson;
 import lombok.experimental.UtilityClass;
+import lombok.extern.slf4j.Slf4j;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
+
+import static com.hydratereminder.Commons.HYDRATION_REMINDER_BREAKS_FILE;
 @UtilityClass
+@Slf4j
 public class HydrateWelcomeMessageDictionary {
 
     /**
@@ -53,9 +63,38 @@ public class HydrateWelcomeMessageDictionary {
                     }});
 
     public static String getRandomWelcomeMessage() {
+        // Before returning a welcome message, check if this is a fresh install first!
+        if (isFreshInstall()) {
+            return "Welcome and thanks for installing or upgrading to the RuneLite Hydrate Reminder plugin v2.0.0!" +
+                    "Adjust settings in the plugin configuration menu and type \"::hr help\" in chat to view available commands.";
+        }
+
         final SecureRandom randomGenerator = new SecureRandom();
         final int randomNumber = randomGenerator.nextInt(HYDRATE_WELCOME_TEXT_LIST.size());
         return HYDRATE_WELCOME_TEXT_LIST.get(randomNumber);
+    }
+
+    public static boolean isFreshInstall() {
+        final Path filePath = Paths.get(HYDRATION_REMINDER_BREAKS_FILE.getPath());
+        try {
+            final String json = new String(Files.readAllBytes(filePath));
+            final Gson gson = new Gson();
+            final Map<String, String> map = gson.fromJson(json, Map.class);
+            final String flag = map.get("installMessageFlag");
+            if (flag == null || flag.equals("0")) {
+                map.put("installMessageFlag", "1");
+                String update = gson.toJson(map, Map.class);
+                Files.write(filePath, update.getBytes());
+                return true;
+            }
+            return false;
+
+        } catch (IOException e) {
+            if (log.isWarnEnabled()) {
+                log.warn("IOException for file {}: {}", HYDRATION_REMINDER_BREAKS_FILE, e.getMessage());
+            }
+            return false;
+        }
     }
 
 }
